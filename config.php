@@ -2,8 +2,8 @@
 /* Configuração do Banco de Dados MySQL */
 
 $host = "localhost";
-$usuario = "root";
-$senha = "12345678"; // senha em branco
+$usuario = "login_user";
+$senha = "senha_segura_123"; // senha em branco
 $banco = "aromaesabor_db";
 $porta = 3306;
 
