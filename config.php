@@ -1,11 +1,16 @@
 <?php
 /* Configuração do Banco de Dados MySQL */
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 
 $host = "localhost";
-$usuario = "login_user";
-$senha = "senha_segura_123"; // senha em branco
+$usuario = "root"; // Padrão do XAMPP
+$senha = "";       // Padrão do XAMPP (vazio)
 $banco = "aromaesabor_db";
 $porta = 3306;
+
 
 $conn = null; // Inicializa a conexão como nula
 
