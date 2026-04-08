@@ -430,7 +430,7 @@ async function submitCheckout(event) {
             cart.clear();
             showSuccess('Pedido criado com sucesso!');
             setTimeout(() => {
-                window.location.href = `/public/orders.html`;
+                window.location.href = `/public/pedidos.html`;
             }, 1500);
         }
     } catch (error) {
