@@ -13,6 +13,7 @@ $porta = 3306;
 
 
 $conn = null; // Inicializa a conexão como nula
+/** @var mysqli|null $conn */
 
 // Criar conexão
 try {

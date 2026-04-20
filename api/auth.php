@@ -6,6 +6,11 @@ header('Access-Control-Allow-Headers: Content-Type');
 
 require_once '../config.php';
 
+if ($conn === null) {
+    json_response(['success' => false, 'error' => 'Erro de conexão com o banco de dados'], 500);
+}
+
+/** @var mysqli $conn */
 // Função para retornar JSON
 function json_response($data, $status = 200) {
     http_response_code($status );

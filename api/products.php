@@ -6,6 +6,11 @@ header('Access-Control-Allow-Headers: Content-Type');
 
 require_once '../config.php';
 
+if ($conn === null) {
+    json_response(['success' => false, 'error' => 'Erro de conexão com o banco de dados'], 500);
+}
+
+/** @var mysqli $conn */
 $method = $_SERVER['REQUEST_METHOD'];
 $action = isset($_GET['action']) ? sanitize($_GET['action']) : '';
 
@@ -24,6 +29,11 @@ if ($method === 'GET') {
     elseif ($action === 'featured') {
         // Listar produtos em destaque
         $result = $conn->query("SELECT * FROM products WHERE featured = 1 LIMIT 6");
+        
+        if (!$result) {
+            json_response(['success' => false, 'error' => 'Erro ao buscar produtos em destaque'], 500);
+        }
+        
         $products = [];
         
         while ($row = $result->fetch_assoc()) {

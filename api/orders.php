@@ -10,9 +10,11 @@ ini_set('display_errors', 0);
 require_once '../config.php';
 
 // Verificar conexão
-if (!$conn) {
+if ($conn === null) {
     json_response(['success' => false, 'error' => 'Erro ao conectar ao banco de dados'], 500);
 }
+
+/** @var mysqli $conn */
 
 $method = $_SERVER['REQUEST_METHOD'];
 $action = isset($_GET['action']) ? sanitize($_GET['action']) : '';
@@ -74,11 +76,10 @@ elseif ($method === 'POST') {
     
     if ($action === 'create') {
         $user_id        = isset($data['user_id'])        ? (int)$data['user_id']              : 0;
-        $total_price    = isset($data['total_price'])    ? (float)$data['total_price']         : 0;
+        $total_price    = isset($data['total_price'])    ? (float)$data['total_price']        : 0;
         $shipping_address = isset($data['shipping_address']) ? sanitize($data['shipping_address']) : '';
         $billing_address  = isset($data['billing_address'])  ? sanitize($data['billing_address'])  : '';
         $items_raw      = isset($data['items'])          ? $data['items']                     : [];
-        $items_json     = json_encode($items_raw);
 
         // Validações
         if ($user_id <= 0) {
@@ -96,6 +97,8 @@ elseif ($method === 'POST') {
         if (empty($items_raw) || !is_array($items_raw)) {
             json_response(['success' => false, 'error' => 'O carrinho está vazio'], 400);
         }
+
+        $items_json = json_encode($items_raw);
 
         // -------------------------------------------------------
         // Verificar estoque disponível para todos os itens

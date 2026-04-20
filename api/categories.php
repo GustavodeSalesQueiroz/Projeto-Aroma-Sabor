@@ -6,6 +6,11 @@ header('Access-Control-Allow-Headers: Content-Type');
 
 require_once '../config.php';
 
+if ($conn === null) {
+    json_response(['success' => false, 'error' => 'Erro de conexão com o banco de dados'], 500);
+}
+
+/** @var mysqli $conn */
 $method = $_SERVER['REQUEST_METHOD'];
 $action = isset($_GET['action']) ? sanitize($_GET['action']) : '';
 

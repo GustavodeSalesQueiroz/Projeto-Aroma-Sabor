@@ -34,8 +34,9 @@ class User {
 const user = new User();
 
 // Funções auxiliares
-function formatPrice(cents) {
-    return `R$ ${(cents / 100).toFixed(2).replace('.', ',')}`;
+function formatPrice(reais) {
+    // Valores já vêm em reais da API, apenas formata para brasileiro
+    return `R$ ${parseFloat(reais).toFixed(2).replace('.', ',')}`;
 }
 
 function showError(message) {
@@ -353,7 +354,7 @@ function removeFromCart(productId) {
 // Atualizar resumo do carrinho
 function updateCartSummary() {
     const subtotal = cart.getTotal();
-    const shipping = subtotal > 0 ? 1500 : 0;
+    const shipping = subtotal > 0 ? 15 : 0; // R$ 15,00
     const total = subtotal + shipping;
 
     const summaryContainer = document.querySelector('.cart-summary');
@@ -388,7 +389,7 @@ async function submitCheckout(event) {
         showError('Você precisa estar logado para fazer um pedido');
         setTimeout(() => {
             window.location.href = '/public/login.html';
-        }, 1500);
+        }, 15);
         return;
     }
 
@@ -400,7 +401,7 @@ async function submitCheckout(event) {
         return;
     }
 
-    const totalPrice = cart.getTotal() + (cart.getTotal() > 0 ? 1500 : 0);
+    const totalPrice = cart.getTotal() + (cart.getTotal() > 0 ? 15 : 0);
 
     // Validar se há itens no carrinho
     if (cart.items.length === 0) {

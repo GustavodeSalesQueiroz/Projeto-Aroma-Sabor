@@ -106,3 +106,9 @@ INSERT INTO products (name, description, price, category_id, image, stock, slug,
 
 ALTER TABLE `aromaesabor_db`.`orders`
 ADD COLUMN items JSON;
+
+-- Inserir usuários de teste
+INSERT INTO users (name, type_user, email, password) VALUES
+('João Silva', 'cliente', 'joao@email.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi'), -- senha: password
+('Maria Santos', 'cliente', 'maria@email.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi'), -- senha: password
+('Admin User', 'admin', 'admin@email.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi'); -- senha: password
