@@ -8,8 +8,9 @@ error_reporting(E_ALL);
 $host = "localhost";
 $usuario = "root"; // Padrão do XAMPP
 $senha = "";       // Padrão do XAMPP (vazio)
-$banco = "aromaesabor_db";
+$banco = "sai_db";
 $porta = 3306;
+
 
 
 $conn = null; // Inicializa a conexão como nula
@@ -49,8 +50,8 @@ try {
 
 
 if (!function_exists('json_response')) {
-    function json_response($data, $status = 200) {
-        http_response_code($status );
+    function json_response(mixed $data, int $status = 200): void {
+        http_response_code($status);
         echo json_encode($data);
         exit; // Garante que o script pare após enviar a resposta
     }
@@ -61,6 +62,12 @@ if (!function_exists('json_response')) {
 
 // Função para sanitizar entrada (mantida para ser usada no auth.php)
 if (!function_exists('sanitize')) {
+    /**
+     * Sanitiza dados de entrada.
+     *
+     * @param array|string $data Dados de entrada, pode ser string ou array.
+     * @return array|string Dados sanitizados, mesmo tipo de entrada.
+     */
     function sanitize($data) {
         if (is_array($data)) {
             return array_map('sanitize', $data);

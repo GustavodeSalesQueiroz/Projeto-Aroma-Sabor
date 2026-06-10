@@ -17,41 +17,38 @@ $action = isset($_GET['action']) ? sanitize($_GET['action']) : '';
 if ($method === 'GET') {
     if ($action === 'list') {
         // Listar todas as categorias
-        $result = $conn->query("SELECT * FROM categories ORDER BY created_at DESC");
+        $result = $conn->query("SELECT id, name FROM categories ORDER BY id DESC");
+        if (!$result) {
+            json_response(['success' => false, 'error' => 'Erro ao buscar categorias'], 500);
+        }
+
         $categories = [];
-        
         while ($row = $result->fetch_assoc()) {
             $categories[] = $row;
         }
-        
+
         json_response(['success' => true, 'data' => $categories]);
     }
     elseif ($action === 'detail') {
-        // Obter detalhes de uma categoria
+        // Obter detalhes de uma categoria pelo ID
         $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
-        $slug = isset($_GET['slug']) ? sanitize($_GET['slug']) : '';
-        
-        if ($id > 0) {
-            $stmt = $conn->prepare("SELECT * FROM categories WHERE id = ?");
-            $stmt->bind_param("i", $id);
-        } elseif ($slug) {
-            $stmt = $conn->prepare("SELECT * FROM categories WHERE slug = ?");
-            $stmt->bind_param("s", $slug);
-        } else {
-            json_response(['success' => false, 'error' => 'ID ou slug é necessário'], 400);
+
+        if ($id <= 0) {
+            json_response(['success' => false, 'error' => 'ID é necessário'], 400);
         }
-        
+
+        $stmt = $conn->prepare("SELECT id, name FROM categories WHERE id = ?");
+        $stmt->bind_param("i", $id);
         $stmt->execute();
         $result = $stmt->get_result();
         $category = $result->fetch_assoc();
-        
+        $stmt->close();
+
         if ($category) {
             json_response(['success' => true, 'data' => $category]);
         } else {
             json_response(['success' => false, 'error' => 'Categoria não encontrada'], 404);
         }
-        
-        $stmt->close();
     }
     else {
         json_response(['success' => false, 'error' => 'Ação não reconhecida'], 400);

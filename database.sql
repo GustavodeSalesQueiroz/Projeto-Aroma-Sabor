@@ -1,75 +1,106 @@
-CREATE DATABASE IF NOT EXISTS aromaesabor_db;
-USE aromaesabor_db;
-
-CREATE TABLE IF NOT EXISTS categories (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    description TEXT,
-    slug VARCHAR(100) UNIQUE NOT NULL,
-    image VARCHAR(500),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS products (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(150) NOT NULL,
-    description TEXT,
-    price INT NOT NULL COMMENT 'Preço em centavos',
-    category_id INT NOT NULL,
-    image VARCHAR(500),
-    stock INT DEFAULT 0,
-    slug VARCHAR(150) UNIQUE NOT NULL,
-    featured TINYINT DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE,
-    INDEX idx_category (category_id),
-    INDEX idx_featured (featured)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS sai_db;
+USE sai_db;
 
 
+-- 1. USUÁRIOS
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(150),
-    type_user varchar(10),
-    email VARCHAR(150) UNIQUE,
-    password VARCHAR(255),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_email (email)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    type_user VARCHAR(50) NOT NULL DEFAULT 'user'
+);
 
-
-CREATE TABLE IF NOT EXISTS cart_items (
+-- 2. CATEGORIAS
+CREATE TABLE IF NOT EXISTS categories (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
+    name VARCHAR(200) NOT NULL UNIQUE
+);
+
+-- 3. FORNECEDORES
+CREATE TABLE IF NOT EXISTS suppliers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(200) NOT NULL UNIQUE
+);
+
+-- 4. PRODUTOS (Controle Geral: Aparência, Descrição, Preço)
+CREATE TABLE IF NOT EXISTS products (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    code VARCHAR(255) UNIQUE,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    price DECIMAL(10, 2) NOT NULL,
+    image_url TEXT, -- Campo para URL da imagem
+    image_path VARCHAR(255), -- Campo para upload de arquivo
+    slug VARCHAR(255) UNIQUE,
+    featured BOOLEAN DEFAULT FALSE,
+    status BOOLEAN DEFAULT TRUE
+);
+
+-- 5. ESTOQUE (Quantidade, Fornecedor e Categoria vinculados ao Produto)
+CREATE TABLE IF NOT EXISTS inventory (
+    id INT AUTO_INCREMENT PRIMARY KEY,
     product_id INT NOT NULL,
-    quantity INT DEFAULT 1,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
-    INDEX idx_user (user_id),
-    UNIQUE KEY unique_user_product (user_id, product_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    category_id INT,
+    supplier_id INT,
+    quantity INT DEFAULT 0,
+    min_stock INT DEFAULT 5,
+    last_updated DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES products(id),
+    FOREIGN KEY (category_id) REFERENCES categories(id),
+    FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
+);
 
+-- 6. HISTÓRICO DE MOVIMENTAÇÃO (Entradas e Saídas)
+CREATE TABLE IF NOT EXISTS stock_movements (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    product_id INT NOT NULL,
+    type ENUM('entry', 'exit') NOT NULL,
+    quantity INT NOT NULL,
+    reason VARCHAR(255),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES products(id)
+);
 
+-- 7. PEDIDOS (Vendas)
 CREATE TABLE IF NOT EXISTS orders (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
-    total_price INT NOT NULL COMMENT 'Preço em centavos',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     status VARCHAR(50) DEFAULT 'pending',
-    shipping_address TEXT,
-    billing_address TEXT,
-    payment_method VARCHAR(100),
-    tracking_number VARCHAR(100),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    INDEX idx_user (user_id),
-    INDEX idx_status (status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    items JSON, -- Armazena os itens do carrinho como JSON para histórico rápido
+    total_price DECIMAL(10, 2),
+    icms_rate DECIMAL(5,2) DEFAULT 0.00,
+    pis_rate DECIMAL(5,2) DEFAULT 0.00,
+    cofins_rate DECIMAL(5,2) DEFAULT 0.00,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+-- 8. ITENS DO CARRINHO/PEDIDOS
+CREATE TABLE IF NOT EXISTS cart_items (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    product_id INT NOT NULL,
+    quantity INT NOT NULL,
+    price DECIMAL(10, 2) NOT NULL,
+    FOREIGN KEY (order_id) REFERENCES orders(id),
+    FOREIGN KEY (product_id) REFERENCES products(id)
+);
+
+-- Dados iniciais (Opcional, mas ajuda no teste)
+INSERT IGNORE INTO categories (name) VALUES ('Chá Verde'), ('Chá Preto'), ('Infusão'), ('Acessórios');
+INSERT IGNORE INTO suppliers (name) VALUES ('Fazenda Chá Real'),( 'Importadora Oriente'),( 'Ervas do Brasil');
+INSERT IGNORE INTO users (name, email, password, type_user) VALUES ('Admin', 'admin@example.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin');
+
+
+-- 9. Ajustes: adicionar categoria e fornecedor diretamente em products (compatibilidade com código)
+ALTER TABLE products ADD COLUMN category_id INT NULL;
+ALTER TABLE products ADD COLUMN supplier_id INT NULL;
+-- Adicionar chaves estrangeiras (podem falhar se já existirem; o script lida com erros)
+ALTER TABLE products ADD CONSTRAINT fk_products_category FOREIGN KEY (category_id) REFERENCES categories(id);
+ALTER TABLE products ADD CONSTRAINT fk_products_supplier FOREIGN KEY (supplier_id) REFERENCES suppliers(id);
+
+
 
 
 INSERT INTO categories (name, description, slug, image) VALUES

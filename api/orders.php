@@ -32,7 +32,7 @@ if ($method === 'GET') {
             json_response(['success' => false, 'error' => 'user_id é necessário'], 400);
         }
         
-        $stmt = $conn->prepare("SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC");
+        $stmt = $conn->prepare("SELECT * FROM orders WHERE user_id = ? ORDER BY id DESC");
         $stmt->bind_param("i", $user_id);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -85,14 +85,21 @@ elseif ($method === 'POST') {
         if ($user_id <= 0) {
             json_response(['success' => false, 'error' => 'user_id inválido'], 400);
         }
+
+        // Verificar se o usuário existe no banco
+        $user_stmt = $conn->prepare("SELECT id FROM users WHERE id = ?");
+        $user_stmt->bind_param("i", $user_id);
+        $user_stmt->execute();
+        $user_result = $user_stmt->get_result();
+        $user_exists = $user_result->num_rows > 0;
+        $user_stmt->close();
+
+        if (!$user_exists) {
+            json_response(['success' => false, 'error' => 'Usuário inválido. Faça login novamente.'], 401);
+        }
+
         if ($total_price <= 0) {
             json_response(['success' => false, 'error' => 'total_price deve ser maior que 0'], 400);
-        }
-        if (!$shipping_address) {
-            json_response(['success' => false, 'error' => 'shipping_address é obrigatório'], 400);
-        }
-        if (!$billing_address) {
-            json_response(['success' => false, 'error' => 'billing_address é obrigatório'], 400);
         }
         if (empty($items_raw) || !is_array($items_raw)) {
             json_response(['success' => false, 'error' => 'O carrinho está vazio'], 400);
@@ -113,7 +120,7 @@ elseif ($method === 'POST') {
                 json_response(['success' => false, 'error' => 'Item do carrinho inválido'], 400);
             }
 
-            $stmt = $conn->prepare("SELECT stock FROM products WHERE id = ?");
+            $stmt = $conn->prepare("SELECT quantity FROM inventory WHERE product_id = ?");
             $stmt->bind_param("i", $product_id);
             $stmt->execute();
             $result = $stmt->get_result();
@@ -124,10 +131,10 @@ elseif ($method === 'POST') {
                 json_response(['success' => false, 'error' => "Produto '{$item_name}' não encontrado"], 404);
             }
 
-            if ($product['stock'] < $qty_needed) {
+            if ($product['quantity'] < $qty_needed) {
                 json_response([
                     'success' => false,
-                    'error'   => "Estoque insuficiente para '{$item_name}'. Disponível: {$product['stock']}, solicitado: {$qty_needed}"
+                    'error'   => "Estoque insuficiente para '{$item_name}'. Disponível: {$product['quantity']}, solicitado: {$qty_needed}"
                 ], 400);
             }
         }
@@ -141,10 +148,10 @@ elseif ($method === 'POST') {
             // 1. Inserir o pedido
             $status = 'pending';
             $stmt = $conn->prepare(
-                "INSERT INTO orders (user_id, total_price, shipping_address, billing_address, status, items)
-                 VALUES (?, ?, ?, ?, ?, ?)"
+                "INSERT INTO orders (user_id, total_price, status, items)
+                 VALUES (?, ?, ?, ?)"
             );
-            $stmt->bind_param("idssss", $user_id, $total_price, $shipping_address, $billing_address, $status, $items_json);
+            $stmt->bind_param("idss", $user_id, $total_price, $status, $items_json);
 
             if (!$stmt->execute()) {
                 throw new Exception('Erro ao criar pedido: ' . $stmt->error);
@@ -159,9 +166,9 @@ elseif ($method === 'POST') {
                 $qty        = (int)$item['quantity'];
 
                 $stmt = $conn->prepare(
-                    "UPDATE products
-                     SET stock = stock - ?
-                     WHERE id = ? AND stock >= ?"
+                    "UPDATE inventory
+                     SET quantity = quantity - ?
+                     WHERE product_id = ? AND quantity >= ?"
                 );
                 $stmt->bind_param("iii", $qty, $product_id, $qty);
 

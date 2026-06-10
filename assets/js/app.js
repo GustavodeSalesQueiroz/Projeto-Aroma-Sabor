@@ -23,7 +23,16 @@ class User {
     }
 
     isLoggedIn() {
-        return this.data !== null;
+        return this.data !== null && Number.isInteger(this.data.id) && this.data.id > 0;
+    }
+
+    getId() {
+        if (!this.data || this.data.id === undefined || this.data.id === null) {
+            return 0;
+        }
+
+        const id = parseInt(this.data.id, 10);
+        return Number.isInteger(id) && id > 0 ? id : 0;
     }
 
     getName() {
@@ -206,7 +215,16 @@ async function fetchAPI(endpoint, options = {}) {
         }
 
         if (!response.ok) {
-            throw new Error(data.error || 'Erro na requisição');
+            const errMsg = data.error || 'Erro na requisição';
+            if (response.status === 401) {
+                user.logout();
+                localStorage.removeItem('cart');
+                showError('Sessão expirada. Faça login novamente.');
+                setTimeout(() => {
+                    window.location.href = '/public/login.html';
+                }, 1200);
+            }
+            throw new Error(errMsg);
         }
 
         return data;
@@ -393,6 +411,16 @@ async function submitCheckout(event) {
         return;
     }
 
+    const userId = user.getId();
+    if (!userId) {
+        user.logout();
+        showError('Sessão inválida. Faça login novamente.');
+        setTimeout(() => {
+            window.location.href = '/public/login.html';
+        }, 1500);
+        return;
+    }
+
     const shippingAddress = document.querySelector('textarea[name="shipping_address"]').value;
     const billingAddress = document.querySelector('textarea[name="billing_address"]').value;
 
@@ -419,7 +447,7 @@ async function submitCheckout(event) {
         const data = await fetchAPI(`/orders.php?action=create`, {
             method: 'POST',
             body: JSON.stringify({
-                user_id: user.data.id,
+                user_id: userId,
                 total_price: totalPrice,
                 shipping_address: shippingAddress,
                 billing_address: billingAddress,

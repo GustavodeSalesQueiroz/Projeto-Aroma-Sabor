@@ -106,7 +106,7 @@ if ($method === 'POST') {
         
         // Buscar usuário
         // Simplificado para usar apenas mysqli
-        $stmt = $conn->prepare("SELECT id, name, email, password, type_user FROM users WHERE email = ?");
+        $stmt = $conn->prepare("SELECT id, name, email, password FROM users WHERE email = ?");
         $stmt->bind_param("s", $email);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -118,7 +118,19 @@ if ($method === 'POST') {
         }
         
         // Verificar senha
-        if (!password_verify($password, $user['password'])) {
+        $isPasswordValid = password_verify($password, $user['password']);
+
+        // Compatibilidade com senhas legadas armazenadas em texto simples
+        if (!$isPasswordValid && $user['password'] === $password) {
+            $isPasswordValid = true;
+            $newHash = password_hash($password, PASSWORD_DEFAULT);
+            $updateStmt = $conn->prepare("UPDATE users SET password = ? WHERE id = ?");
+            $updateStmt->bind_param("si", $newHash, $user['id']);
+            $updateStmt->execute();
+            $updateStmt->close();
+        }
+
+        if (!$isPasswordValid) {
             json_response(['success' => false, 'error' => 'Email ou senha incorretos'], 401);
         }
         
@@ -129,7 +141,7 @@ if ($method === 'POST') {
                 'id' => $user['id'],
                 'name' => $user['name'],
                 'email' => $user['email'],
-                'type_user' => $user['type_user']
+                'type_user' => 'user'
             ]
         ]);
     }
