@@ -178,11 +178,12 @@ elseif ($method === 'POST') {
                 $stmt_items->close();
             }
 
-            // 3. Decrementar estoque de cada produto
+            // 3. Decrementar estoque de cada produto e registrar no histórico
             foreach ($items_raw as $item) {
                 $product_id = (int)$item['id'];
                 $qty        = (int)$item['quantity'];
 
+                // 3a. Atualiza o estoque atual
                 $stmt = $conn->prepare(
                     "UPDATE inventory
                      SET quantity = quantity - ?
@@ -197,8 +198,22 @@ elseif ($method === 'POST') {
                 if ($stmt->affected_rows === 0) {
                     throw new Exception('Estoque insuficiente para o produto #' . $product_id . ' durante a atualização');
                 }
-
                 $stmt->close();
+
+                // 3b. Grava a saída no histórico de movimentação (stock_movements)
+                $type = 'exit';
+                $reason = "Pedido #" . $order_id; // Identifica de qual pedido foi essa saída
+
+                $stmt_movement = $conn->prepare(
+                    "INSERT INTO stock_movements (product_id, type, quantity, reason) 
+                     VALUES (?, ?, ?, ?)"
+                );
+                $stmt_movement->bind_param("isis", $product_id, $type, $qty, $reason);
+
+                if (!$stmt_movement->execute()) {
+                    throw new Exception('Erro ao salvar histórico de movimentação do produto #' . $product_id . ': ' . $stmt_movement->error);
+                }
+                $stmt_movement->close();
             }
 
             // 4. Confirmar transação no banco
