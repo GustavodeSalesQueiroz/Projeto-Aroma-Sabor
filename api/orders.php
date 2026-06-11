@@ -75,11 +75,11 @@ elseif ($method === 'POST') {
     $data = json_decode(file_get_contents('php://input'), true);
     
     if ($action === 'create') {
-        $user_id        = isset($data['user_id'])        ? (int)$data['user_id']              : 0;
-        $total_price    = isset($data['total_price'])    ? (float)$data['total_price']        : 0;
+        $user_id          = isset($data['user_id'])          ? (int)$data['user_id']              : 0;
+        $total_price      = isset($data['total_price'])      ? (float)$data['total_price']        : 0;
         $shipping_address = isset($data['shipping_address']) ? sanitize($data['shipping_address']) : '';
         $billing_address  = isset($data['billing_address'])  ? sanitize($data['billing_address'])  : '';
-        $items_raw      = isset($data['items'])          ? $data['items']                     : [];
+        $items_raw        = isset($data['items'])          ? $data['items']                     : [];
 
         // Validações
         if ($user_id <= 0) {
@@ -140,18 +140,18 @@ elseif ($method === 'POST') {
         }
 
         // -------------------------------------------------------
-        // Iniciar transação: inserir pedido + decrementar estoque
+        // Iniciar transação: inserir pedido + itens + decrementar estoque
         // -------------------------------------------------------
         $conn->begin_transaction();
 
         try {
-            // 1. Inserir o pedido
+            // 1. Inserir o pedido (Incluindo o shipping_address)
             $status = 'pending';
             $stmt = $conn->prepare(
-                "INSERT INTO orders (user_id, total_price, status, items)
-                 VALUES (?, ?, ?, ?)"
+                "INSERT INTO orders (user_id, total_price, status, items, shipping_address)
+                 VALUES (?, ?, ?, ?, ?)"
             );
-            $stmt->bind_param("idss", $user_id, $total_price, $status, $items_json);
+            $stmt->bind_param("idsss", $user_id, $total_price, $status, $items_json, $shipping_address);
 
             if (!$stmt->execute()) {
                 throw new Exception('Erro ao criar pedido: ' . $stmt->error);
@@ -160,7 +160,25 @@ elseif ($method === 'POST') {
             $order_id = $conn->insert_id;
             $stmt->close();
 
-            // 2. Decrementar estoque de cada produto
+            // 2. Gravar os itens individualmente na tabela relacional cart_items
+            foreach ($items_raw as $item) {
+                $product_id = (int)$item['id'];
+                $qty        = (int)$item['quantity'];
+                $price      = isset($item['price']) ? (float)$item['price'] : 0.0;
+
+                $stmt_items = $conn->prepare(
+                    "INSERT INTO cart_items (order_id, product_id, quantity, price) 
+                     VALUES (?, ?, ?, ?)"
+                );
+                $stmt_items->bind_param("iiid", $order_id, $product_id, $qty, $price);
+
+                if (!$stmt_items->execute()) {
+                    throw new Exception('Erro ao vincular item ao pedido: ' . $stmt_items->error);
+                }
+                $stmt_items->close();
+            }
+
+            // 3. Decrementar estoque de cada produto
             foreach ($items_raw as $item) {
                 $product_id = (int)$item['id'];
                 $qty        = (int)$item['quantity'];
@@ -183,7 +201,7 @@ elseif ($method === 'POST') {
                 $stmt->close();
             }
 
-            // 3. Confirmar transação
+            // 4. Confirmar transação no banco
             $conn->commit();
 
             json_response([

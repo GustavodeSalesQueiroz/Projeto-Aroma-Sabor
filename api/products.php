@@ -24,11 +24,14 @@ function fetchProductsResult($result) {
 
 if ($method === 'GET') {
     if ($action === 'list') {
-        // Listar todos os produtos ativos
-        $sql = "SELECT p.id, p.code, p.name, p.description, p.price, p.slug, p.featured, p.status, p.category_id, COALESCE(p.image_url, p.image_path, '') AS image, COALESCE(inv.quantity, 0) AS stock
+        // CORREÇÃO: SUM e GROUP BY adicionados para evitar duplicar produtos com múltiplos estoques
+        $sql = "SELECT p.id, p.code, p.name, p.description, p.price, p.slug, p.featured, p.status, p.category_id, 
+                       COALESCE(p.image_url, p.image_path, '') AS image, 
+                       COALESCE(SUM(inv.quantity), 0) AS stock
                 FROM products p
                 LEFT JOIN inventory inv ON p.id = inv.product_id
                 WHERE p.status = 1
+                GROUP BY p.id
                 ORDER BY p.id DESC";
         $result = $conn->query($sql);
 
@@ -39,11 +42,14 @@ if ($method === 'GET') {
         json_response(['success' => true, 'data' => fetchProductsResult($result)]);
     }
     elseif ($action === 'featured') {
-        // Listar produtos em destaque
-        $sql = "SELECT p.id, p.code, p.name, p.description, p.price, p.slug, p.featured, p.status, p.category_id, COALESCE(p.image_url, p.image_path, '') AS image, COALESCE(inv.quantity, 0) AS stock
+        // CORREÇÃO: SUM e GROUP BY adicionados aqui também
+        $sql = "SELECT p.id, p.code, p.name, p.description, p.price, p.slug, p.featured, p.status, p.category_id, 
+                       COALESCE(p.image_url, p.image_path, '') AS image, 
+                       COALESCE(SUM(inv.quantity), 0) AS stock
                 FROM products p
                 LEFT JOIN inventory inv ON p.id = inv.product_id
                 WHERE p.featured = 1 AND p.status = 1
+                GROUP BY p.id
                 LIMIT 6";
         $result = $conn->query($sql);
 
@@ -54,21 +60,27 @@ if ($method === 'GET') {
         json_response(['success' => true, 'data' => fetchProductsResult($result)]);
     }
     elseif ($action === 'detail') {
-        // Obter detalhes de um produto
         $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
         $slug = isset($_GET['slug']) ? sanitize($_GET['slug']) : '';
 
+        // CORREÇÃO: Agrupamento por ID e SUM na busca por detalhes
         if ($id > 0) {
-            $stmt = $conn->prepare("SELECT p.id, p.code, p.name, p.description, p.price, p.slug, p.featured, p.status, p.category_id, COALESCE(p.image_url, p.image_path, '') AS image, COALESCE(inv.quantity, 0) AS stock
-                FROM products p
-                LEFT JOIN inventory inv ON p.id = inv.product_id
-                WHERE p.id = ? AND p.status = 1");
+            $stmt = $conn->prepare("SELECT p.id, p.code, p.name, p.description, p.price, p.slug, p.featured, p.status, p.category_id, 
+                                           COALESCE(p.image_url, p.image_path, '') AS image, 
+                                           COALESCE(SUM(inv.quantity), 0) AS stock
+                                    FROM products p
+                                    LEFT JOIN inventory inv ON p.id = inv.product_id
+                                    WHERE p.id = ? AND p.status = 1
+                                    GROUP BY p.id");
             $stmt->bind_param("i", $id);
         } elseif ($slug) {
-            $stmt = $conn->prepare("SELECT p.id, p.code, p.name, p.description, p.price, p.slug, p.featured, p.status, p.category_id, COALESCE(p.image_url, p.image_path, '') AS image, COALESCE(inv.quantity, 0) AS stock
-                FROM products p
-                LEFT JOIN inventory inv ON p.id = inv.product_id
-                WHERE p.slug = ? AND p.status = 1");
+            $stmt = $conn->prepare("SELECT p.id, p.code, p.name, p.description, p.price, p.slug, p.featured, p.status, p.category_id, 
+                                           COALESCE(p.image_url, p.image_path, '') AS image, 
+                                           COALESCE(SUM(inv.quantity), 0) AS stock
+                                    FROM products p
+                                    LEFT JOIN inventory inv ON p.id = inv.product_id
+                                    WHERE p.slug = ? AND p.status = 1
+                                    GROUP BY p.id");
             $stmt->bind_param("s", $slug);
         } else {
             json_response(['success' => false, 'error' => 'ID ou slug é necessário'], 400);
@@ -86,18 +98,21 @@ if ($method === 'GET') {
         }
     }
     elseif ($action === 'by_category') {
-        // Obter produtos por categoria
         $category_id = isset($_GET['category_id']) ? (int)$_GET['category_id'] : 0;
 
         if ($category_id <= 0) {
             json_response(['success' => false, 'error' => 'category_id é necessário'], 400);
         }
 
-        $stmt = $conn->prepare("SELECT p.id, p.code, p.name, p.description, p.price, p.slug, p.featured, p.status, p.category_id, COALESCE(p.image_url, p.image_path, '') AS image, COALESCE(inv.quantity, 0) AS stock
-                FROM products p
-                LEFT JOIN inventory inv ON p.id = inv.product_id
-                WHERE p.category_id = ? AND p.status = 1
-                ORDER BY p.id DESC");
+        // CORREÇÃO: Agrupamento por ID e SUM na busca por categoria
+        $stmt = $conn->prepare("SELECT p.id, p.code, p.name, p.description, p.price, p.slug, p.featured, p.status, p.category_id, 
+                                       COALESCE(p.image_url, p.image_path, '') AS image, 
+                                       COALESCE(SUM(inv.quantity), 0) AS stock
+                                FROM products p
+                                LEFT JOIN inventory inv ON p.id = inv.product_id
+                                WHERE p.category_id = ? AND p.status = 1
+                                GROUP BY p.id
+                                ORDER BY p.id DESC");
         $stmt->bind_param("i", $category_id);
         $stmt->execute();
         $result = $stmt->get_result();

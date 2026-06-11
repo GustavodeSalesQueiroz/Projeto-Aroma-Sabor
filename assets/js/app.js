@@ -242,7 +242,7 @@ async function loadProducts(filters = {}) {
         params.append('action', 'list');
         
         if (filters.category) {
-            params.append('action', 'by_category');
+            params.set('action', 'by_category');
             params.append('category_id', filters.category);
         }
 
@@ -299,7 +299,7 @@ function renderProducts(products, container) {
             <img src="${product.image}" alt="${product.name}" class="product-image">
             <div class="product-info">
                 <div class="product-name">${product.name}</div>
-                <div class="product-description">${product.description}</div>
+                <div class="product-description">${product.description || ''}</div>
                 <div class="product-footer">
                     <div class="product-price">${formatPrice(product.price)}</div>
                     <div class="product-stock ${product.stock === 0 ? 'out' : ''}">
@@ -407,7 +407,7 @@ async function submitCheckout(event) {
         showError('Você precisa estar logado para fazer um pedido');
         setTimeout(() => {
             window.location.href = '/public/login.html';
-        }, 15);
+        }, 1500);
         return;
     }
 
@@ -481,7 +481,6 @@ async function initPage() {
     }
     else if (page === 'products') {
         const container = document.querySelector('.products-grid');
-        const filterButtons = document.querySelectorAll('.filter-group button');
 
         async function loadAndRender(filters = {}) {
             if (container) {
@@ -491,9 +490,10 @@ async function initPage() {
             }
         }
 
-        // Carregar categorias
+        // Carregar categorias dinamicamente
         const categories = await loadCategories();
         const filterGroup = document.querySelector('.filter-group');
+        
         if (filterGroup && categories.length > 0) {
             filterGroup.innerHTML = '<h3>Categorias</h3>' + 
                 '<button class="filter-btn active" data-category="">Todas as Categorias</button>' +
@@ -503,8 +503,15 @@ async function initPage() {
                 btn.addEventListener('click', async () => {
                     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
-                    const category = btn.getAttribute('data-category');
-                    loadAndRender(category ? { category: parseInt(category) } : {});
+                    
+                    const categoryId = btn.getAttribute('data-category');
+                    
+                    // Ajustado aqui para passar a propriedade correta encapsulada no objeto
+                    if (categoryId) {
+                        loadAndRender({ category: parseInt(categoryId, 10) });
+                    } else {
+                        loadAndRender({});
+                    }
                 });
             });
         }
@@ -527,7 +534,7 @@ async function initPage() {
                 const addBtn = document.querySelector('.btn-add-to-cart');
                 if (addBtn) {
                     addBtn.addEventListener('click', () => {
-                        const quantity = parseInt(document.querySelector('.quantity-input').value);
+                        const quantity = parseInt(document.querySelector('.quantity-input').value, 10);
                         cart.addItem(product, quantity);
                     });
                 }
